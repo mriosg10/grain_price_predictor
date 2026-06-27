@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "mcp__claude_ai_Google_Drive__search_files",
+      "Bash(pip install *)",
+      "Bash(python -c \"from grain_price_predictor.ingestion import BanxicoIngester, CMEIngester, NOAAIngester, NASAPowerIngester, SNIIMIngester, SIAPIngester, CONAGUAIngester; print\\('All imports OK'\\)\")",
+      "Bash(python3 scripts/download_all.py --sources banxico,cme,noaa)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 scripts/download_all.py --sources banxico,noaa)",
+      "Bash(python3 scripts/download_all.py --sources nasa_power --locations culiacan,guasave,ahome,florida_immokalee)",
+      "Bash(python3 *)"
+    ]
+  }
+}
