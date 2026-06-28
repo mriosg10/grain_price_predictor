@@ -125,6 +125,61 @@ def compute_metrics(results: pd.DataFrame) -> pd.Series:
 
 
 # ---------------------------------------------------------------------------
+# Interval calibration
+# ---------------------------------------------------------------------------
+
+def calibrate_interval_width(
+    results: pd.DataFrame,
+    target_coverage: float = 0.80,
+    tol: float = 1e-4,
+) -> float:
+    """Find the scalar multiplier k that stretches [p10, p90] to hit target_coverage.
+
+    Applies a symmetric multiplicative stretch around p50:
+        lo = p50 - k * (p50 - p10)
+        hi = p50 + k * (p90 - p50)
+
+    Uses bisection over k in [0, 20]. Returns k=1.0 if intervals are absent.
+    """
+    if "p10" not in results.columns or "p90" not in results.columns:
+        return 1.0
+
+    a   = results["actual"].values
+    p50 = results["p50"].values
+    p10 = results["p10"].values
+    p90 = results["p90"].values
+    half_lo = p50 - p10   # raw half-width on lower side
+    half_hi = p90 - p50   # raw half-width on upper side
+
+    def coverage_at(k: float) -> float:
+        return float(np.nanmean((a >= p50 - k * half_lo) & (a <= p50 + k * half_hi)))
+
+    lo_k, hi_k = 0.0, 20.0
+    for _ in range(64):
+        mid = (lo_k + hi_k) / 2
+        if coverage_at(mid) < target_coverage:
+            lo_k = mid
+        else:
+            hi_k = mid
+        if hi_k - lo_k < tol:
+            break
+
+    k = (lo_k + hi_k) / 2
+    logger.info(f"[calibrate] k={k:.3f} → empirical coverage={coverage_at(k)*100:.1f}%")
+    return k
+
+
+def apply_calibration(results: pd.DataFrame, k: float) -> pd.DataFrame:
+    """Return a copy of results with p10/p90 stretched by factor k around p50."""
+    if k == 1.0 or "p10" not in results.columns:
+        return results
+    out = results.copy()
+    out["p10"] = out["p50"] - k * (out["p50"] - out["p10"])
+    out["p90"] = out["p50"] + k * (out["p90"] - out["p50"])
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Harvest-window evaluation (spec §7.3)
 # ---------------------------------------------------------------------------
 

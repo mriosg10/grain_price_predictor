@@ -38,6 +38,9 @@ from grain_price_predictor.models.corn_lgbm import CornLGBMModel
 from grain_price_predictor.evaluation.backtest import (
     evaluate_all_models,
     evaluate_harvest_windows,
+    calibrate_interval_width,
+    apply_calibration,
+    compute_metrics,
 )
 
 console = Console()
@@ -142,21 +145,34 @@ def main(min_train: int, no_lgbm: bool, save_model: bool) -> None:
         logger.error("No backtest results — check that you have enough data.")
         sys.exit(1)
 
-    # ── 4. Metrics table ───────────────────────────────────────────────────
-    console.rule("[bold]Step 4 — Metrics")
+    # ── 4. Calibrate intervals ─────────────────────────────────────────────
+    lgbm_key = "CornLGBM_P50" if "CornLGBM_P50" in all_results else None
+    calib_k = 1.0
+    if lgbm_key:
+        console.rule("[bold]Step 4 — Interval calibration")
+        calib_k = calibrate_interval_width(all_results[lgbm_key], target_coverage=0.80)
+        all_results[lgbm_key] = apply_calibration(all_results[lgbm_key], calib_k)
+        cal_metrics = compute_metrics(all_results[lgbm_key])
+        metrics_df.loc[lgbm_key] = cal_metrics
+        console.print(f"  Width multiplier k = [cyan]{calib_k:.3f}[/cyan]")
+        console.print(f"  80% coverage after calibration: "
+                      f"[green]{cal_metrics.get('coverage_80%', float('nan')):.1f}%[/green]")
+
+    # ── 5. Metrics table ───────────────────────────────────────────────────
+    console.rule("[bold]Step 5 — Metrics")
     console.print(_rich_metrics_table(metrics_df))
 
-    # ── 5. Harvest-window table ────────────────────────────────────────────
-    console.rule("[bold]Step 5 — April anchor predictions")
-    lgbm_key = "CornLGBM_P50" if "CornLGBM_P50" in all_results else list(all_results.keys())[-1]
-    harvest_df = evaluate_harvest_windows(all_results[lgbm_key], anchor_month=4)
+    # ── 6. Harvest-window table ────────────────────────────────────────────
+    console.rule("[bold]Step 6 — April anchor predictions")
+    show_key = lgbm_key or list(all_results.keys())[-1]
+    harvest_df = evaluate_harvest_windows(all_results[show_key], anchor_month=4)
     if harvest_df.empty:
         console.print("  [yellow]No April predictions in backtest window.[/yellow]")
     else:
-        console.print(_rich_harvest_table(harvest_df, lgbm_key))
+        console.print(_rich_harvest_table(harvest_df, show_key))
 
-    # ── 6. Save results ────────────────────────────────────────────────────
-    console.rule("[bold]Step 6 — Persist artifacts")
+    # ── 7. Save results ────────────────────────────────────────────────────
+    console.rule("[bold]Step 7 — Persist artifacts")
     out_dir = ROOT / "data" / "processed"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -164,20 +180,25 @@ def main(min_train: int, no_lgbm: bool, save_model: bool) -> None:
         safe = model_name.lower().replace(" ", "_")
         res_df.to_parquet(out_dir / f"corn_backtest_{safe}.parquet")
 
-    # Save combined metrics
     metrics_df.to_csv(out_dir / "corn_metrics_v1.csv")
     console.print(f"  Backtest results → [cyan]{out_dir}[/cyan]")
     console.print(f"  Metrics → [cyan]{out_dir / 'corn_metrics_v1.csv'}[/cyan]")
 
-    if save_model and not no_lgbm and "CornLGBM_P50" in all_results:
+    if save_model and not no_lgbm and lgbm_key:
+        import json
         models_dir = ROOT / "models"
         models_dir.mkdir(exist_ok=True)
-        # Re-train on full dataset to save production model
         console.print("  Re-training LightGBM on full data for production model...")
+        clean_idx = feat[feature_cols].dropna().index
         prod_model = CornLGBMModel()
-        prod_model.fit(feat[feature_cols].dropna(), valid.reindex(feat[feature_cols].dropna().index).dropna())
+        prod_model.fit(feat.loc[clean_idx, feature_cols], valid.reindex(clean_idx).dropna())
         prod_model.save(models_dir / "corn_lgbm_v1.pkl")
+
+        # Persist calibration k alongside model
+        calib_path = models_dir / "corn_lgbm_v1_calib.json"
+        calib_path.write_text(json.dumps({"interval_width_k": calib_k, "target_coverage": 0.80}))
         console.print(f"  Model → [cyan]{models_dir / 'corn_lgbm_v1.pkl'}[/cyan]")
+        console.print(f"  Calibration → [cyan]{calib_path}[/cyan]  (k={calib_k:.3f})")
 
         # Feature importance
         console.rule("[bold]Feature Importance (P50 model, top 15)")
