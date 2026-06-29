@@ -17,12 +17,10 @@ class NaiveSeasonalModel:
         return self
 
     def predict(self, X: pd.DataFrame) -> pd.Series:
-        preds = []
-        for d in X.index:
-            prev = d - pd.DateOffset(years=1)
-            candidates = self._y.index[self._y.index <= prev]
-            preds.append(float(self._y.iloc[self._y.index.get_loc(candidates[-1])])
-                         if len(candidates) else np.nan)
+        preds = [
+            self._y.asof(d - pd.DateOffset(years=1))
+            for d in X.index
+        ]
         return pd.Series(preds, index=X.index, name="naive_seasonal")
 
 

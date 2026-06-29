@@ -62,8 +62,8 @@ class CornLGBMModel:
 
     @property
     def feature_importance(self) -> pd.Series:
-        imp = self._models[0.50].feature_importances_
-        return pd.Series(imp, index=self.feature_names_, name="importance").sort_values(
+        m = self._models.get(0.50) or next(iter(self._models.values()))
+        return pd.Series(m.feature_importances_, index=self.feature_names_, name="importance").sort_values(
             ascending=False
         )
 

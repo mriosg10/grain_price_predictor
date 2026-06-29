@@ -65,7 +65,7 @@ def load_corn_target(origen: str = "Sinaloa") -> pd.Series:
     )
 
     # Align to month-start timestamps
-    monthly.index = pd.DatetimeIndex(monthly.index).to_period("M").to_timestamp("D").normalize()
+    monthly.index = pd.DatetimeIndex(monthly.index).to_period("M").to_timestamp("D")
     monthly = monthly * KG_TO_TON
     monthly.name = "precio_mxn_ton"
     return monthly
