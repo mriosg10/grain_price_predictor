@@ -46,13 +46,13 @@ class CornLGBMModel:
         for q in QUANTILES:
             logger.debug(f"[lgbm] Fitting P{int(q*100):02d}")
             m = lgb.LGBMRegressor(objective="quantile", alpha=q, **self._params)
-            m.fit(X.values, y.values)
+            m.fit(X, y)
             self._models[q] = m
         return self
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
         """Return DataFrame with columns p10, p50, p90."""
-        cols = {f"p{int(q*100):02d}": m.predict(X.values)
+        cols = {f"p{int(q*100):02d}": m.predict(X)
                 for q, m in self._models.items()}
         return pd.DataFrame(cols, index=X.index)
 
