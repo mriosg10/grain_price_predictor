@@ -5,6 +5,8 @@ from .nasa_power import NASAPowerIngester
 from .noaa import NOAAIngester
 from .siap import SIAPIngester
 from .sniim import SNIIMIngester
+from .usda_nass import USDANASSIngester
+from .world_bank import WorldBankIngester
 
 __all__ = [
     "BanxicoIngester",
@@ -14,4 +16,6 @@ __all__ = [
     "NOAAIngester",
     "SIAPIngester",
     "SNIIMIngester",
+    "USDANASSIngester",
+    "WorldBankIngester",
 ]

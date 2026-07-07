@@ -21,7 +21,8 @@ from loguru import logger
 
 load_dotenv()
 
-ALL_SOURCES = ["banxico", "cme", "noaa", "nasa_power", "sniim", "siap", "conagua"]
+ALL_SOURCES = ["banxico", "cme", "noaa", "nasa_power", "sniim", "siap", "conagua",
+               "world_bank", "usda_nass"]
 
 
 @click.command()
@@ -47,6 +48,8 @@ def main(sources: str, start: str, end: str | None, locations: str | None) -> No
         NOAAIngester,
         SIAPIngester,
         SNIIMIngester,
+        USDANASSIngester,
+        WorldBankIngester,
     )
 
     start_dt = date.fromisoformat(start)
@@ -94,6 +97,23 @@ def main(sources: str, start: str, end: str | None, locations: str | None) -> No
             summary["conagua"] = f"{sum(len(v) for v in results.values()):,} rows"
         else:
             summary["conagua"] = "0 rows — try load_from_file() with manual SINA export"
+
+    if "world_bank" in selected:
+        results = WorldBankIngester().download(start_dt, end_dt)
+        if results:
+            summary["world_bank"] = f"{sum(len(v) for v in results.values()):,} rows"
+        else:
+            summary["world_bank"] = "0 rows — check network access"
+
+    if "usda_nass" in selected:
+        results = USDANASSIngester().download(start_dt, end_dt)
+        if results:
+            summary["usda_nass"] = f"{sum(len(v) for v in results.values()):,} rows"
+        else:
+            summary["usda_nass"] = (
+                "0 rows — set NASS_API_KEY in .env "
+                "(free key: https://quickstats.nass.usda.gov/api)"
+            )
 
     click.echo("\n── Download Summary ─────────────────────────────")
     for src, msg in summary.items():

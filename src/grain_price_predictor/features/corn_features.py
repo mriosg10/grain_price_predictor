@@ -55,6 +55,24 @@ def load_enso_monthly() -> pd.Series:
     return df.set_index("date")["oni_anomaly"].rename("oni").sort_index()
 
 
+@functools.lru_cache(maxsize=1)
+def load_wb_maize_monthly() -> pd.Series:
+    df = load_raw("world_bank", "commodity_prices")
+    if df is None:
+        return pd.Series(dtype=float, name="wb_maize_usd_mt")
+    df["date"] = pd.to_datetime(df["date"])
+    return df.set_index("date")["maize_usd_mt"].rename("wb_maize_usd_mt").sort_index()
+
+
+@functools.lru_cache(maxsize=1)
+def load_nass_supply_annual() -> pd.DataFrame | None:
+    df = load_raw("usda_nass", "corn_supply")
+    if df is None:
+        return None
+    df["date"] = pd.to_datetime(df["date"])
+    return df.set_index("date").sort_index()
+
+
 # ---------------------------------------------------------------------------
 # Feature builder
 # ---------------------------------------------------------------------------
@@ -121,6 +139,30 @@ def build_corn_features(
     feat["is_segalmex"] = (feat["policy_floor"] > 0).astype(np.int8)
     # Premium above floor at last known price (t-1)
     feat["floor_premium_lag01"] = price.shift(1) - feat["policy_floor"]
+
+    # ── World Bank global maize price (USD/mt) ────────────────────────────
+    wb_maize = load_wb_maize_monthly().reindex(price.index)
+    for lag in [1, 3]:
+        feat[f"wb_maize_lag{lag:02d}"] = wb_maize.shift(lag)
+    # Ratio of global to CME price — measures basis between world and US market
+    # (positive = world above CME → import pressure into Mexico)
+    feat["wb_cme_ratio_lag01"] = feat["wb_maize_lag01"] / feat["cme_usd_lag01"]
+
+    # ── USDA NASS US corn supply (annual, lagged 1yr to avoid leakage) ────
+    nass = load_nass_supply_annual()
+    if nass is not None:
+        for col in ["us_corn_production_mbu", "us_corn_planted_macres",
+                    "us_corn_yield_bu_acre"]:
+            if col in nass.columns:
+                # Shift 12m: use prior year's final estimate (published Nov)
+                feat[col] = nass[col].reindex(price.index).shift(12)
+        if "us_corn_production_mbu" in nass.columns:
+            feat["us_corn_prod_yoy_pct"] = (
+                nass["us_corn_production_mbu"]
+                .reindex(price.index)
+                .pct_change(12)
+                .shift(12) * 100
+            )
 
     # ── ENSO ─────────────────────────────────────────────────────────────
     for lag in [1, 3, 6]:
