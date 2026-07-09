@@ -16,7 +16,12 @@
       "Bash(python3 -c ' *)",
       "Bash(python3 scripts/download_all.py --sources banxico,noaa)",
       "Bash(python3 scripts/download_all.py --sources nasa_power --locations culiacan,guasave,ahome,florida_immokalee)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(curl -s \"https://apps.fas.usda.gov/psdonline/api/psd/commodityData?commodityCode=0440000&countryCode=2840000\")",
+      "Bash(curl -sv \"https://apps.fas.usda.gov/psdonline/api/psd/commodityData?commodityCode=0440000&countryCode=2840000\")",
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\" -A \"Mozilla/5.0\" \"https://apps.fas.usda.gov/psdonline/api/psd/commodityData?commodityCode=0440000&countryCode=2840000\")",
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://apps.fas.usda.gov/psdonline/api/psd/commodity/cropYear?cropYear=2023&commodityCode=0440000&countryCode=2840000\" -w \"\\\\nHTTP:%{http_code}\")",
+      "Bash(curl -s \"https://apps.fas.usda.gov/psdonline/api/psd/crops?year=2023\" -w \"\\\\nHTTP:%{http_code}\")"
     ]
   }
 }
