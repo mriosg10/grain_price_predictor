@@ -161,7 +161,7 @@ def build_corn_features(
             feat["us_corn_prod_yoy_pct"] = (
                 nass["us_corn_production_mbu"]
                 .reindex(price.index)
-                .pct_change(12)
+                .pct_change(12, fill_method=None)
                 .shift(12) * 100
             )
 

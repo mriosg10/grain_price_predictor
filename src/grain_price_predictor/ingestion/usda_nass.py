@@ -40,6 +40,7 @@ _QUERIES = [
         "unit_desc": "BU",
         "agg_level_desc": "NATIONAL",
         "reference_period_desc": "YEAR",
+        "domain_desc": "TOTAL",
         "name": "us_corn_production_mbu",
         "scale": 1e-6,  # raw is bushels → million bushels
     },
@@ -49,6 +50,7 @@ _QUERIES = [
         "unit_desc": "ACRES",
         "agg_level_desc": "NATIONAL",
         "reference_period_desc": "YEAR",
+        "domain_desc": "TOTAL",
         "name": "us_corn_planted_macres",
         "scale": 1e-6,
     },
@@ -58,6 +60,7 @@ _QUERIES = [
         "unit_desc": "ACRES",
         "agg_level_desc": "NATIONAL",
         "reference_period_desc": "YEAR",
+        "domain_desc": "TOTAL",
         "name": "us_corn_harvested_macres",
         "scale": 1e-6,
     },
@@ -67,6 +70,7 @@ _QUERIES = [
         "unit_desc": "BU / ACRE",
         "agg_level_desc": "NATIONAL",
         "reference_period_desc": "YEAR",
+        "domain_desc": "TOTAL",
         "name": "us_corn_yield_bu_acre",
         "scale": 1.0,
     },
@@ -95,8 +99,10 @@ class USDANASSIngester(BaseIngester):
         df.columns = ["year", name]
         df[name] = pd.to_numeric(df[name].str.replace(",", ""), errors="coerce") * scale
         df["year"] = df["year"].astype(int)
-        df = df.dropna(subset=[name]).sort_values("year").reset_index(drop=True)
-        return df
+        df = df.dropna(subset=[name])
+        # Keep one row per year: take the max (final/largest official estimate)
+        df = df.groupby("year", as_index=False)[name].max()
+        return df.sort_values("year").reset_index(drop=True)
 
     def download(
         self,

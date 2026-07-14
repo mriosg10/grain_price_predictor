@@ -16,8 +16,8 @@ from loguru import logger
 QUANTILES = (0.10, 0.50, 0.90)
 
 _BASE_PARAMS: dict = {
-    "n_estimators":     400,
-    "learning_rate":    0.02,
+    "n_estimators":     150,
+    "learning_rate":    0.05,
     "num_leaves":       15,
     "min_child_samples": 5,
     "subsample":        0.8,
